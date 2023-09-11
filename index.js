@@ -1,7 +1,7 @@
 // https://github.com/sindresorhus/is-plain-obj
 
 function isPlainObject(value) {
-	
+
 	if (typeof value !== 'object' || value === null) {
 		return false;
 	}
@@ -66,7 +66,7 @@ async function fetch2(url, options = {}) {
 		// note that for res.status in the 3xx range, we also have res.ok as false; but we don't
 		// consider those to be an error (and it seems fetch will automatically make a new request in that case?)
 
-		if (!responseIsError) {
+		if (responseIsError) {
 			let message = 'response was not successful' + (payload.message != null ? (': ' + payload.message) : '');
 			let err = new Error(message);
 			err.payload = payload;
