@@ -1,3 +1,15 @@
+// https://github.com/sindresorhus/is-plain-obj
+
+function isPlainObject(value) {
+	
+	if (typeof value !== 'object' || value === null) {
+		return false;
+	}
+
+	const prototype = Object.getPrototypeOf(value);
+	return (prototype === null || prototype === Object.prototype || Object.getPrototypeOf(prototype) === null) && !(Symbol.toStringTag in value) && !(Symbol.iterator in value);
+}
+
 async function fetch2(url, options = {}) {
 
 	// if we have passed a body property and it is a plain object or array,
