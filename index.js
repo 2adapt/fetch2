@@ -20,6 +20,11 @@ async function fetch2(url, options = {}) {
 		options.headers = { 'content-type': 'application/json', ...options.headers };
 	}
 
+	if (options.parse == null) {
+		options.parse = {}
+		options.parse.keysWithDates = ['created_at', 'updated_at'];
+	}
+
 	// use another the fetch wrapper, if given; this is the case when fetch2 is called 
 	// from in +page.js or +page.server.js files, where sveltekit gives was a fetch wrapper;
 	// https://kit.svelte.dev/docs/web-standards#fetch-apis
@@ -47,7 +52,7 @@ async function fetch2(url, options = {}) {
 		// "When abort() is called, the fetch() promise rejects with a DOMException named AbortError"
 		// https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 
-		timerId = setTimeout(() => { abortController.abort() }, options.timeout || 5 * 1000);
+		timerId = setTimeout(() => { abortController.abort() }, options.timeout || 10 * 1000);
 	}
 
 	let res = await fetch(url, options);
@@ -60,20 +65,23 @@ async function fetch2(url, options = {}) {
 	// if response is json, automatically return the parsed data
 
 	if (res.headers.has('Content-Type') && res.headers.get('Content-Type').toLowerCase().startsWith('application/json')) {
-		let payload = await res.json();
 		let responseIsError = (res.ok === false && res.status >= 400);
-
+		let payload = await res.json();
 		// note that for res.status in the 3xx range, we also have res.ok as false; but we don't
 		// consider those to be an error (and it seems fetch will automatically make a new request in that case?)
 
 		if (responseIsError) {
-			let message = 'response was not successful' + (payload.message != null ? (': ' + payload.message) : '');
+			let message = (payload.message != null ? payload.message : 'response was not successful');
 			let err = new Error(message);
 			err.payload = payload;
 
 			throw err;
 		}
 		else {
+			if (typeof options.parse === 'object' && Array.isArray(options.parse.keysWithDates)) {
+				parseDates(payload, options.parse.keysWithDates);
+			}
+
 			return payload;
 		}
 	}
@@ -85,6 +93,34 @@ async function fetch2(url, options = {}) {
 		throw err;
 	}
  
+}
+
+function parseDates(payload, keysWithDates) {
+
+	let array = isPlainObject(payload) ? [payload] : payload;
+
+	for (let o of array) {
+		if (!isPlainObject(o)) { continue }
+
+		for (let [key, value] of Object.entries(o)) {
+			let propertyIsDate = keysWithDates.includes(key) && typeof value === 'string';
+
+			if (propertyIsDate) {
+				try {
+					o[key] = new Date(value);
+				}
+				catch(err) {
+					// ...
+				}
+			}
+
+			// recursive call
+
+			if (isPlainObject(value) || Array.isArray(value)) {
+				parseDates(value, keysWithDates);
+			}
+		}
+	}
 }
 
 export default fetch2;
